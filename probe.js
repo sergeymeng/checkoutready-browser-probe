@@ -1,6 +1,17 @@
 'use strict';
 (() => {
   const A='https://checkoutready-probe-a.sergeymeng.chatgpt.site';
+  // A redirected iframe can lose its fragment through an upstream redirect.
+  // Exchange state only with its exact parent on the pinned primary origin.
+  if(new URLSearchParams(location.search).get('mode')==='landing'){
+    window.addEventListener('message',e=>{
+      const s=e.data?.state;
+      if(e.origin!==A||e.source!==parent||e.data?.kind!=='redirect-state'||!s||!/^[A-Fa-f0-9]{32}$/.test(s.token)||!/^[a-f0-9-]{36}$/i.test(s.session)||!(s.expiresAt>Date.now()&&s.expiresAt<Date.now()+660000))return;
+      parent.postMessage({kind:'redirect',token:s.token,session:s.session,origin:location.origin},A);
+    });
+    parent.postMessage({kind:'redirect-ready'},A);
+    return;
+  }
   let state;
   try { state=JSON.parse(decodeURIComponent(location.hash.slice(1))); } catch { return; }
   if (!state || !/^[A-Fa-f0-9]{32}$/.test(state.token) || !/^[a-f0-9-]{36}$/i.test(state.session) || Date.now()>state.expiresAt || state.expiresAt>Date.now()+660000) return;
